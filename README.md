@@ -1,92 +1,196 @@
-# 🧬 Bitácora de Procesamiento de Datos Metagenómicos
+# 🧬 Bitácora de procesamiento de datos metagenómicos antárticos
 
-> **Proyecto:** Análisis Metagenómico de Muestras Antárticas (2019)  
-> **Etapa 1:** Control de Calidad, Limpieza y Trimado de Adaptadores (`fastp`)  
-> **Etapa 2:** Ensamblaje Metagenómico *De Novo* (`MEGAHIT`)  
-> **Etapa 3:** Evaluación de Calidad de Ensamblajes (`QUAST`)  
-> **Fecha de actualización:** Octubre 2026  
-
----
-
-## 📋 Tabla de Contenidos
-
-- [1. Descripción del Dataset Crudo](#1-descripción-del-dataset-crudo)
-- [2. Control de Calidad y Preprocesamiento (`fastp`)](#2-control-de-calidad-y-preprocesamiento-fastp)
-  - [2.1. Comando de Muestra y Fundamentación Parámetro por Parámetro](#21-comando-de-muestra-y-fundamentación-parámetro-por-parámetro)
-  - [2.2. Mapeo General de Muestras Pareadas](#22-mapeo-general-de-muestras-pareadas)
-  - [2.3. Archivos Salida Obtenidos tras `fastp`](#23-archivos-salida-obtenidos-tras-fastp)
-  - [2.4. Guía de Interpretación del Informe HTML](#24-guía-de-interpretación-del-informe-html)
-- [3. Ensamblaje Metagenómico *De Novo* (`MEGAHIT`)](#3-ensamblaje-metagenómico-de-novo-megahit)
-  - [3.1. Comando Ejecutado y Desglose de Parámetros](#31-comando-ejecutado-y-desglose-de-parámetros)
-  - [3.2. Mapeo General del Lote de Muestras para MEGAHIT](#32-mapeo-general-del-lote-de-muestras-para-megahit)
-  - [3.3. Estructura de Salida y Resultados de MEGAHIT](#33-estructura-de-salida-y-resultados-de-megahit)
-- [4. Evaluación de Calidad del Ensamblaje (`QUAST`)](#4-evaluación-de-calidad-del-ensamblaje-quast)
-  - [4.1. Comando Ejecutado y Desglose de Parámetros](#41-comando-ejecutado-y-desglose-de-parámetros)
-  - [4.2. Mapeo General del Lote de Muestras para QUAST](#42-mapeo-general-del-lote-de-muestras-para-quast)
-  - [4.3. Estructura de Resultados y Archivos de Salida de QUAST](#43-estructura-de-resultados-y-archivos-de-salida-de-quast)
-  - [4.4. Guía de Interpretación de Métricas Bioinformáticas](#44-guía-de-interpretación-de-métricas-bioinformáticas)
-- [5. Automatización del Pipeline Completo en Lote (Bash)](#5-automatización-del-pipeline-completo-en-lote-bash)
-- [6. Diagrama de Flujo Integrado del Pipeline](#6-diagrama-de-flujo-integrado-del-pipeline)
-- [7. Referencias](#7-referencias)
+> **Proyecto:** Análisis metagenómico de muestras antárticas (2019)  
+> **Etapa 1:** Asignación taxonómica directa (`Kaiju`) *[paso lateral]*  
+> **Etapa 2:** Control de calidad, limpieza y recortado de adaptadores (`fastp`)  
+> **Etapa 3:** Ensamblaje metagenómico *de novo* (`MEGAHIT`)  
+> **Etapa 4:** Evaluación de calidad de ensamblajes (`QUAST`)  
+> **Etapa 5:** Filtrado de contigs (`SeqKit`) y predicción génica (`Prodigal`)  
+> **Etapa 6:** Anotación funcional genómica (`EggNOG-mapper`)  
+> **Fecha de actualización:** Octubre de 2026  
 
 ---
 
-## 1. 📂 Descripción del Dataset Crudo
+## 📋 Tabla de contenidos
 
-El dataset de entrada consiste en 5 parejas de archivos FASTQ comprimidos (`.fastq.gz`) obtenidos mediante secuenciación de lecturas pareadas (*paired-end*, PE) de metagenomas ambientales antárticos.
+- [0. Herramientas auxiliares para procesos en segundo plano (`screen` y `nohup`)](#0-herramientas-auxiliares-para-procesos-en-segundo-plano-screen-y-nohup)
+- [1. Descripción del dataset crudo](#1-descripción-del-dataset-crudo)
+- [2. Asignación taxonómica directa desde lecturas crudas (`Kaiju`) [paso lateral]](#2-asignación-taxonómica-directa-desde-lecturas-crudas-kaiju-paso-lateral)
+  - [2.1. Comando de muestra y fundamentación parámetro por parámetro](#21-comando-de-muestra-y-fundamentación-parámetro-por-parámetro)
+  - [2.2. Mapeo general de muestras pareadas](#22-mapeo-general-de-muestras-pareadas)
+  - [2.3. Resumen de abundancias taxonómicas (`kaiju2table`)](#23-resumen-de-abundancias-taxonómicas-kaiju2table)
+  - [2.4. Tiempo medio de procesamiento](#24-tiempo-medio-de-procesamiento)
+- [3. Control de calidad y preprocesamiento (`fastp`)](#3-control-de-calidad-y-preprocesamiento-fastp)
+  - [3.1. Comando de muestra y fundamentación parámetro por parámetro](#31-comando-de-muestra-y-fundamentación-parámetro-por-parámetro)
+  - [3.2. Mapeo general de muestras pareadas](#32-mapeo-general-de-muestras-pareadas)
+  - [3.3. Archivos de salida obtenidos tras `fastp`](#33-archivos-salida-obtenidos-tras-fastp)
+  - [3.4. Guía de interpretación del informe HTML](#34-guía-de-interpretación-del-informe-html)
+  - [3.5. Tiempo medio de procesamiento](#35-tiempo-medio-de-procesamiento)
+- [4. Ensamblaje metagenómico *de novo* (`MEGAHIT`)](#4-ensamblaje-metagenómico-de-novo-megahit)
+  - [4.1. Comando ejecutado y desglose de parámetros](#41-comando-ejecutado-y-desglose-de-parámetros)
+  - [4.2. Mapeo general del lote de muestras para MEGAHIT](#42-mapeo-general-del-lote-de-muestras-para-megahit)
+  - [4.3. Estructura de salida y resultados de MEGAHIT](#43-estructura-de-salida-y-resultados-de-megahit)
+  - [4.4. Tiempo medio de procesamiento](#44-tiempo-medio-de-procesamiento)
+- [5. Evaluación de calidad del ensamblaje (`QUAST`)](#5-evaluación-de-calidad-del-ensamblaje-quast)
+  - [5.1. Comando ejecutado y desglose de parámetros](#51-comando-ejecutado-y-desglose-de-parámetros)
+  - [5.2. Mapeo general del lote de muestras para QUAST](#52-mapeo-general-del-lote-de-muestras-para-quast)
+  - [5.3. Estructura de resultados y archivos de salida de QUAST](#53-estructura-de-resultados-y-archivos-de-salida-de-quast)
+  - [5.4. Resultados reales del reporte de QUAST (contigs ≥ 1000 bp)](#54-resultados-reales-del-reporte-quast-contigs--1000-bp)
+  - [5.5. Guía de interpretación de métricas bioinformáticas](#55-guía-de-interpretación-de-métricas-bioinformáticas)
+  - [5.6. Tiempo medio de procesamiento](#56-tiempo-medio-de-procesamiento)
+- [6. Filtrado de contigs (`SeqKit`) y predicción génica (`Prodigal`)](#6-filtrado-de-contigs-seqkit-y-predicción-génica-prodigal)
+  - [6.1. Filtrado por longitud mínima con `SeqKit`](#61-filtrado-por-longitud-mínima-con-seqkit)
+  - [6.2. Predicción de CDS y proteínas con `Prodigal`](#62-predicción-de-cds-y-proteínas-con-prodigal)
+  - [6.3. Mapeo general del lote y estructura de salida](#63-mapeo-general-del-lote-y-estructura-de-salida)
+  - [6.4. Tiempo medio de procesamiento](#64-tiempo-medio-de-procesamiento)
+- [7. Anotación funcional genómica (`EggNOG-mapper`)](#7-anotación-funcional-genómica-eggnog-mapper)
+  - [7.1. Comando ejecutado y desglose de parámetros](#71-comando-ejecutado-y-desglose-de-parámetros)
+  - [7.2. Mapeo general del lote de muestras para EggNOG-mapper](#72-mapeo-general-del-lote-de-muestras-para-eggnog-mapper)
+  - [7.3. Estructura de resultados y archivos de salida de EggNOG](#73-estructura-de-resultados-y-archivos-de-salida-de-eggnog)
+  - [7.4. Tiempo medio de procesamiento](#74-tiempo-medio-de-procesamiento)
+- [8. Automatización del pipeline completo en lote (Bash)](#8-automatización-del-pipeline-completo-en-lote-bash)
+- [9. Diagrama de flujo integrado del pipeline](#9-diagrama-de-flujo-integrado-del-pipeline)
+- [10. Referencias](#10-referencias)
+
+---
+
+## 0. 🛠️ Herramientas auxiliares para procesos en segundo plano (`screen` y `nohup`)
+
+En entornos de computación de alto rendimiento (HPC) o servidores remotos vía SSH, los procesos bioinformáticos de larga duración (como el ensamblaje o la clasificación taxonómica) requieren mecanismos de persistencia para evitar interrupciones por caídas de red o cierre de terminales. Aunque hay más herramientas disponibles, se emplearon estas dos:
+
+### 0.1. GNU Screen (`screen`)
+
+`screen` es un multiplexor de terminales que crea sesiones independientes del proceso de shell activo.
+
+#### Desglose de comandos y opciones principales:
+* **`screen -S <nombre_sesion>`**: Crea una nueva sesión de terminal con un identificador personalizado (ej. `screen -S megahit_run`).
+* **`screen -ls`**: Lista todas las sesiones activas en el servidor con su estado (`Attached` o `Detached`).
+* **`screen -r <nombre_o_id>`**: Reanuda (*reattach*) una sesión que se encuentra en segundo plano.
+* **`screen -d <nombre_o_id>`**: Desconecta (*detach*) una sesión activa desde otra terminal.
+
+#### Combinaciones de teclas clave (dentro de una sesión Screen):
+* **`Ctrl + A` seguido de `D`**: Desconecta la sesión actual y regresa a la shell principal manteniendo los comandos ejecutándose en segundo plano.
+* **`Ctrl + A` seguido de `K`**: Cierra (*kill*) la sesión actual.
+* **`exit`**: Finaliza la sesión limpiamente tras completar las tareas.
+
+---
+
+### 0.2. Comando `nohup` (*No Hang Up*)
+
+`nohup` redirige la señal `SIGHUP` (emitida al cerrar la sesión SSH) para que los procesos continúen ejecutándose en el servidor.
+
+#### Uso y parámetros:
+```bash
+nohup <COMANDO_BIOINFORMÁTICO> > salida.log 2>&1 &
+```
+* **`nohup`**: Evita la cancelación del proceso si se pierde la conexión SSH.
+* **`> salida.log 2>&1`**: Redirige la salida estándar (`STDOUT`) y los errores (`STDERR`) a un archivo de registro (por defecto `./nohup.out`).
+* **`&`**: Envía el comando al segundo plano (*background*), devolviendo el control de la terminal inmediatamente.
+
+---
+
+## 1. 📂 Descripción del dataset crudo
+
+El dataset de entrada consiste en 5 parejas de archivos FASTQ comprimidos (`.fastq.gz`) obtenidos mediante secuenciación de lecturas pareadas (*paired-end*, PE) de metagenomas ambientales antárticos (2019).
 
 ```text
 metagenomas_antarida_2019/
-├── C4_230_347_S89_L002_R1_001.fastq.gz
-├── C4_230_347_S89_L002_R2_001.fastq.gz
-├── D_242_335_S88_L002_R1_001.fastq.gz
-├── D_242_335_S88_L002_R2_001.fastq.gz
-├── E4_254_323_S87_L002_R1_001.fastq.gz
-├── E4_254_323_S87_L002_R2_001.fastq.gz
-├── EC_266_311_S86_L002_R1_001.fastq.gz
-├── EC_266_311_S86_L002_R2_001.fastq.gz
-├── H_278_299_S85_L002_R1_001.fastq.gz
-└── H_278_299_S85_L002_R2_001.fastq.gz
+├── C4_230_347_S89_L002_R1_001.fastq.gz   (17,020,773 KB ~ 17.02 GB)
+├── C4_230_347_S89_L002_R2_001.fastq.gz   (17,922,220 KB ~ 17.92 GB)
+├── D_242_335_S88_L002_R1_001.fastq.gz    ( 3,663,943 KB ~  3.66 GB)
+├── D_242_335_S88_L002_R2_001.fastq.gz    ( 3,842,488 KB ~  3.84 GB)
+├── E4_254_323_S87_L002_R1_001.fastq.gz   ( 7,921,805 KB ~  7.92 GB)
+├── E4_254_323_S87_L002_R2_001.fastq.gz   ( 8,249,762 KB ~  8.25 GB)
+├── EC_266_311_S86_L002_R1_001.fastq.gz  ( 7,876,211 KB ~  7.88 GB)
+├── EC_266_311_S86_L002_R2_001.fastq.gz  ( 8,246,128 KB ~  8.25 GB)
+├── H_278_299_S85_L002_R1_001.fastq.gz   ( 6,824,312 KB ~  6.82 GB)
+└── H_278_299_S85_L002_R2_001.fastq.gz   ( 7,149,960 KB ~  7.15 GB)
 ```
+* **Volumen Total Crudo:** **88,717,602 KB (~88.72 GB)**.
 
 ---
 
-## 2. ⚙️ Control de Calidad y Preprocesamiento (`fastp`)
+## 2. 🔀 Asignación taxonómica directa desde lecturas crudas (`Kaiju`) [paso lateral]
 
-Se empleó la herramienta **`fastp`** (v1.0 / v0.23+), un preprocesador ultrafácil y todo-en-uno para archivos FASTQ, para realizar control de calidad, remoción de adaptadores y filtrado por calidad Phred en una sola pasada.
+Como análisis complementario e independiente del ensamblaje, se realizó la clasificación taxonómica de las lecturas crudas utilizando **Kaiju**. Al traducir las secuencias de ADN a sus 6 marcos de lectura y alinearlas contra una base de datos proteica de referencia (`nr_euk`), Kaiju identifica miembros de la comunidad microbiana (incluyendo organismos de baja abundancia o divergentes).
 
-### 2.1. Comando de Muestra y Fundamentación Parámetro por Parámetro
+### 2.1. Comando de muestra y fundamentación parámetro por parámetro
 
 ```bash
-../fastp \
-  -i ../metagenomas_antarida_2019/C4_230_347_S89_L002_R1_001.fastq.gz \
-  -I ../metagenomas_antarida_2019/C4_230_347_S89_L002_R2_001.fastq.gz \
-  -o C_230_R1.fastq.gz \
-  -O C_230_R2.fastq.gz \
-  -q 20 \
-  -j C_230.json \
-  -h C_230.html
+./kaiju/bin/kaiju   -t /media/hdd1/kaijudb/nodes.dmp   -f /media/hdd1/kaijudb/kaiju_db_nr_euk.fmi   -i ./metagenomas_antarida_2019/D_242_335_S88_L002_R1_001.fastq.gz   -j ./metagenomas_antarida_2019/D_242_335_S88_L002_R2_001.fastq.gz   -o ./taxMetagenomes/D_242-kaiju.out   -z 16
 ```
 
-#### 🛠️ Desglose de Parámetros
+#### 🛠️ Desglose de parámetros:
 
-| Parámetro | Nombre Largo | Descripción / Fundamentación Bioinformática |
+| Parámetro | Nombre largo | Descripción / fundamentación bioinformática |
 | :--- | :--- | :--- |
-| `-i` | `--in1` | Ruta al archivo de entrada FASTQ comprimido para **Read 1 (R1)**. |
-| `-I` | `--in2` | Ruta al archivo de entrada FASTQ comprimido para **Read 2 (R2)**. |
-| `-o` | `--out1` | Nombre del archivo de salida limpio para **Read 1**. La extensión `.gz` habilita compresión automática `gzip`. |
-| `-O` | `--out2` | Nombre del archivo de salida limpio para **Read 2**. |
-| `-q 20` | `--qualified_quality_phred` | Define la calidad Phred mínima para considerar una base como cualificada (**Q20 = 99% de precisión**). El valor predeterminado es Q15. |
-| `-j` | `--json` | Genera un archivo de reporte en formato **JSON** con métricas cuantitativas estructuradas. |
-| `-h` | `--html` | Genera un informe visual interactivo en formato **HTML** para la inspección gráfica de curvas de calidad y adaptadores. |
+| `-t` | `--taxonomy` | Ruta al archivo jerárquico de nodos de la taxonomía NCBI (`nodes.dmp`). |
+| `-f` | `--fmi` | Ruta al índice FM de la base de datos proteica de referencia (`kaiju_db_nr_euk.fmi`). Incluye referencias de bacterias, arqueas, virus, hongos y microeucariotas. |
+| `-i` | `--in1` | Ruta al archivo FASTQ de entrada para **Read 1 (R1)**. |
+| `-j` | `--in2` | Ruta al archivo FASTQ de entrada para **Read 2 (R2)**. |
+| `-o` | `--output` | Archivo de salida con la clasificación por lectura (`.out`). |
+| `-z 16` | `--threads` | Asigna **16 hilos CPU** para acelerar el alineamiento multihilo. |
 
 ---
 
-### 2.2. Mapeo General de Muestras Pareadas
+### 2.2. Mapeo general de muestras pareadas
 
-Configuración del comando para cada una de las 5 muestras metagenómicas:
+| ID de muestra | Archivo de entrada R1 (`-i`) | Archivo de entrada R2 (`-j`) | Archivo de salida (`-o`) |
+| :---: | :--- | :--- | :--- |
+| **C4_230** | `.../C4_230_..._R1_001.fastq.gz` | `.../C4_230_..._R2_001.fastq.gz` | `./taxMetagenomes/C4_230-kaiju.out` |
+| **D_242** | `.../D_242_..._R1_001.fastq.gz` | `.../D_242_..._R2_001.fastq.gz` | `./taxMetagenomes/D_242-kaiju.out` |
+| **E4_254** | `.../E4_254_..._R1_001.fastq.gz` | `.../E4_254_..._R2_001.fastq.gz` | `./taxMetagenomes/E4_254-kaiju.out` |
+| **EC_266** | `.../EC_266_..._R1_001.fastq.gz` | `.../EC_266_..._R2_001.fastq.gz` | `./taxMetagenomes/EC_266-kaiju.out` |
+| **H_278** | `.../H_278_..._R1_001.fastq.gz` | `.../H_278_..._R2_001.fastq.gz` | `./taxMetagenomes/H_278-kaiju.out` |
 
-| ID Muestra | Entrada R1 (`-i`) | Entrada R2 (`-I`) | Salida R1 (`-o`) | Salida R2 (`-O`) | Reporte JSON (`-j`) | Reporte HTML (`-h`) |
+---
+
+### 2.3. Resumen de abundancias taxonómicas (`kaiju2table`)
+
+Para resumir la clasificación individual de cada lectura en una matriz de abundancias tabulada:
+
+```bash
+../kaiju/bin/kaiju2table   -t /media/hdd1/kaijudb/nodes.dmp   -n /media/hdd1/kaijudb/names.dmp   -o summaryKaiju.table   -r genus   -l superkingdom,phylum,class,order,family,genus   *.out
+```
+
+* **`-n names.dmp`**: Mapeo de TaxIDs de NCBI a nombres científicos.
+* **`-r genus`**: Resume el conteo a nivel de **Género**.
+* **`-l ...`**: Exporta la jerarquía taxonómica completa.
+* **`summaryKaiju.table`**: Matriz de abundancia relativa y conteos lista para análisis downstream en R/Python.
+
+---
+
+### 2.4. Tiempo medio de procesamiento (Kaiju)
+
+* **Rendimiento por muestra:** ~20 a 60 minutos por muestra según el tamaño de la librería.
+* **Tiempo total estimado (lote de 5 muestras):** **~3.5 a 5.5 horas** con 16 hilos en la base `nr_euk`. `kaiju2table` toma **1 a 2 minutos**.
+
+---
+
+## 3. ⚙️ Control de calidad y preprocesamiento (`fastp`)
+
+Se empleó **`fastp`** (v1.0 / v0.23+) para realizar control de calidad, remoción de adaptadores y filtrado por calidad Phred en una sola pasada.
+
+### 3.1. Comando de muestra y fundamentación parámetro por parámetro
+
+```bash
+../fastp   -i ../metagenomas_antarida_2019/C4_230_347_S89_L002_R1_001.fastq.gz   -I ../metagenomas_antarida_2019/C4_230_347_S89_L002_R2_001.fastq.gz   -o C_230_R1.fastq.gz   -O C_230_R2.fastq.gz   -q 20   -j C_230.json   -h C_230.html
+```
+
+#### 🛠️ Desglose de parámetros:
+
+| Parámetro | Nombre largo | Descripción / fundamentación bioinformática |
+| :--- | :--- | :--- |
+| `-i` / `-I` | `--in1` / `--in2` | Archivos FASTQ de entrada pareados comprimidos (`.fastq.gz`). |
+| `-o` / `-O` | `--out1` / `--out2` | Archivos FASTQ de salida limpios (comprimidos en `.gz`). |
+| `-q 20` | `--qualified_quality_phred` | Calidad Phred mínima para base cualificada (**Q20 = 99% precisión**). |
+| `-j` / `-h` | `--json` / `--html` | Reportes de métricas cuantitativas (JSON) y gráficos interactivos (HTML). |
+
+---
+
+### 3.2. Mapeo general de muestras pareadas
+
+| ID de muestra | Entrada R1 (`-i`) | Entrada R2 (`-I`) | Salida R1 (`-o`) | Salida R2 (`-O`) | Reporte JSON (`-j`) | Reporte HTML (`-h`) |
 | :---: | :--- | :--- | :--- | :--- | :---: | :---: |
 | **C4_230** | `.../C4_230_..._R1_001.fastq.gz` | `.../C4_230_..._R2_001.fastq.gz` | `C_230_R1.fastq.gz` | `C_230_R2.fastq.gz` | `C_230.json` | `C_230.html` |
 | **D_242** | `.../D_242_..._R1_001.fastq.gz` | `.../D_242_..._R2_001.fastq.gz` | `D_242_R1.fastq.gz` | `D_242_R2.fastq.gz` | `D_242.json` | `D_242.html` |
@@ -96,9 +200,7 @@ Configuración del comando para cada una de las 5 muestras metagenómicas:
 
 ---
 
-### 2.3. Archivos Salida Obtenidos tras `fastp`
-
-Como resultado de ejecutar `fastp` para las 5 muestras, el directorio de lecturas filtradas contiene los siguientes archivos listos para el ensamblaje:
+### 3.3. Archivos de salida obtenidos tras `fastp`
 
 ```text
 clean_fastq/
@@ -116,288 +218,385 @@ clean_fastq/
 
 ---
 
-### 2.4. Guía de Interpretación del Informe HTML
+### 3.4. Guía de interpretación del informe HTML
 
 <details>
 <summary><b>🔍 Haga clic para desplegar los detalles del informe de control de calidad</b></summary>
 
-1. **Summary (Resumen General):**
-   - Muestra el total de lecturas y bases antes y después del filtrado.
-   - Proporción de bases **Q20** (≥99% precisión) y **Q30** (≥99.9% precisión).
-   - Porcentaje de contenido **GC**.
-   - Conteo de lecturas aprobadas (*Passed filters*) y causas de lecturas descartadas (baja calidad, Ns, o longitud corta <15 bp).
-
-2. **Quality Curves (Curvas de Calidad Phred):**
-   - Gráficos por posición (R1 y R2). Muestran la ganancia de calidad Phred tras el filtrado.
-
-3. **Base Contents (Composición de Nucleótidos):**
-   - Estabilidad de las proporciones A, T, C, G a lo largo de los ciclos de secuenciación.
-
-4. **Adapter Contents (Contenido de Adaptadores):**
-   - Porcentaje de adaptadores recortados automáticamente por análisis de solapamiento.
-
-5. **Duplication Rate (Tasa de Duplicación):**
-   - Porcentaje de secuencias duplicadas para evaluar sesgos de PCR.
+1. **Resumen (*Summary*):** Lecturas totales, porcentaje Q20/Q30 y GC pre y postfiltrado.
+2. **Curvas de calidad (*Quality Curves*):** Curvas de calidad Phred por ciclo para R1 y R2.
+3. **Composición de bases (*Base Contents*):** Proporción de A, T, C y G por posición para detectar sesgos.
+4. **Contenido de adaptadores (*Adapter Contents*):** Porcentaje de adaptadores identificados y eliminados.
+5. **Tasa de duplicación (*Duplication Rate*):** Nivel de lecturas duplicadas por PCR.
 
 </details>
 
 ---
 
-## 3. 🧩 Ensamblaje Metagenómico *De Novo* (`MEGAHIT`)
+### 3.5. Tiempo medio de procesamiento (fastp)
 
-Para la reconstrucción de genomas no cultivados a partir de los datos metagenómicos limpios, se utilizó **MEGAHIT** (v1.2.9), un ensamblador *de novo* ultra rápido y altamente eficiente en uso de memoria RAM basado en grafos de de Bruijn concisos (*Succinct de Bruijn Graph*, SDBG).
+* **Por muestra:** ~2 min (`D_242`) a ~15 min (`C4_230`).
+* **Lote Completo (88.72 GB):** **~25 a 45 minutos** con 16 hilos.
 
-### 3.1. Comando Ejecutado y Desglose de Parámetros
+---
 
-Ejemplo del comando ejecutado para la muestra **H_278**:
+## 4. 🧩 Ensamblaje metagenómico *de novo* (`MEGAHIT`)
+
+Reconstrucción de contigs genómicos mediante **MEGAHIT** (v1.2.9) basado en grafos de de Bruijn concisos (SDBG).
+
+### 4.1. Comando ejecutado y desglose de parámetros
 
 ```bash
-../MEGAHIT-1.2.9-Linux-x86_64-static/bin/megahit \
-  -1 ../fastq/H_278_R1.fastq.gz \
-  -2 ../fastq/H_278_R2.fastq.gz \
-  -o ./H_278/ \
-  -t 16
+../MEGAHIT-1.2.9-Linux-x86_64-static/bin/megahit   -1 ../fastq/H_278_R1.fastq.gz   -2 ../fastq/H_278_R2.fastq.gz   -o ./H_278/   -t 16
 ```
 
-#### 🛠️ Desglose de Parámetros
-
-| Parámetro | Nombre Largo | Descripción / Fundamentación Bioinformática |
-| :--- | :--- | :--- |
-| `../megahit` | — | Binario ejecutable estático de MEGAHIT (v1.2.9). |
-| `-1` | `--read1` | Ruta al archivo FASTQ filtrado con las lecturas pareadas **Read 1 (R1)**. |
-| `-2` | `--read2` | Ruta al archivo FASTQ filtrado con las lecturas pareadas **Read 2 (R2)**. |
-| `-o` | `--out-dir` | Directorio de salida específico para la muestra (`./H_278/`). MEGAHIT creará la carpeta y almacenará contigs y archivos auxiliares. |
-| `-t 16` | `--num-cpu-threads` | Número de hilos CPU para acelerar el procesamiento en paralelo (**16 hilos** asignados). |
+#### 🛠️ Desglose de parámetros:
+* **`-1` / `-2`**: Lecturas pareadas limpias.
+* **`-o ./H_278/`**: Directorio de salida específico por muestra.
+* **`-t 16`**: 16 hilos CPU asignados.
 
 ---
 
-### 3.2. Mapeo General del Lote de Muestras para MEGAHIT
+### 4.2. Mapeo general del lote de muestras para MEGAHIT
 
-A continuación se presenta la matriz de ejecución del ensamblaje individual para cada una de las 5 muestras del estudio:
-
-| Muestra | Entrada Lecturas R1 (`-1`) | Entrada Lecturas R2 (`-2`) | Directorio Salida (`-o`) | Hilos (`-t`) |
-| :---: | :--- | :--- | :---: | :---: |
-| **C4_230** | `../fastq/C_230_R1.fastq.gz` | `../fastq/C_230_R2.fastq.gz` | `./C_230/` | `16` |
-| **D_242** | `../fastq/D_242_R1.fastq.gz` | `../fastq/D_242_R2.fastq.gz` | `./D_242/` | `16` |
-| **E4_254** | `../fastq/E4_254_R1.fastq.gz` | `../fastq/E4_254_R2.fastq.gz` | `./E4_254/` | `16` |
-| **EC_266** | `../fastq/EC_266_R1.fastq.gz` | `../fastq/EC_266_R2.fastq.gz` | `./EC_266/` | `16` |
-| **H_278** | `../fastq/H_278_R1.fastq.gz` | `../fastq/H_278_R2.fastq.gz` | `./H_278/` | `16` |
+| Muestra | Entrada de lecturas R1 (`-1`) | Entrada de lecturas R2 (`-2`) | Directorio de salida (`-o`) |
+| :---: | :--- | :--- | :---: |
+| **C4_230** | `../fastq/C_230_R1.fastq.gz` | `../fastq/C_230_R2.fastq.gz` | `./MegahitOutputs/C4_230/` |
+| **D_242** | `../fastq/D_242_R1.fastq.gz` | `../fastq/D_242_R2.fastq.gz` | `./MegahitOutputs/D_242/` |
+| **E4_254** | `../fastq/E4_254_R1.fastq.gz` | `../fastq/E4_254_R2.fastq.gz` | `./MegahitOutputs/E4_254/` |
+| **EC_266** | `../fastq/EC_266_R1.fastq.gz` | `../fastq/EC_266_R2.fastq.gz` | `./MegahitOutputs/EC_266/` |
+| **H_278** | `../fastq/H_278_R1.fastq.gz` | `../fastq/H_278_R2.fastq.gz` | `./MegahitOutputs/H_278/` |
 
 ---
 
-### 3.3. Estructura de Salida y Resultados de MEGAHIT
-
-Dentro de cada carpeta de salida (ej. `./H_278/`), MEGAHIT genera los siguientes archivos clave:
+### 4.3. Estructura de salida y resultados de MEGAHIT
 
 ```text
-H_278/
-├── final.contigs.fa          <-- 🌟 ARCHIVO PRINCIPAL: Contigs ensamblados finales (FASTA)
-├── checkpoints.txt           <-- Registro de control para reanudar la ejecución si se interrumpe
-├── log                       <-- Registro detallado del proceso (k-meros evaluados, tiempo, uso de memoria)
-├── options.json              <-- Configuración y parámetros utilizados
-└── intermediate_contigs/     <-- Contigs intermedios por cada tamaño de k-mero (k21, k31, k41, ..., k119)
-    ├── k21.contig.fa
-    ├── k31.contig.fa
-    └── ...
+MegahitOutputs/H_278/
+├── assembly_H_278.contigs.fa  <-- 🌟 ARCHIVO PRINCIPAL: Contigs ensamblados finales (FASTA)
+├── checkpoints.txt
+├── log
+├── options.json
+└── intermediate_contigs/     <-- Contigs intermedios (k21 a k119)
 ```
 
-* **`final.contigs.fa`**: Es el resultado primario que contiene los contigs ensamblados finales en formato FASTA. Este archivo es el insumo clave para la siguiente fase: **evaluación de ensamblaje (QUAST), mapeo de lecturas (Bowtie2/BWA) y Binning (MetaBAT2/CheckM)**.
+---
+
+### 4.4. Tiempo medio de procesamiento (MEGAHIT)
+
+* **Por Muestra:** Desde ~6-10 horas (`D_242`) hasta **~48 horas reales** (`C4_230`).
+* **Lote Completo (88.72 GB):** **~105 a 132 horas (~4.3 a 5.5 días continuos)** con 16 hilos CPU.
 
 ---
 
+## 5. 📊 Evaluación de calidad del ensamblaje (`QUAST`)
 
----
+Evaluación de métricas estadísticas de continuidad y fragmentación con **QUAST**.
 
-## 4. 📊 Evaluación de Calidad del Ensamblaje (`QUAST`)
-
-Para evaluar la continuidad, fragmentación y calidad estructural de los contigs ensamblados por MEGAHIT, se emplea **QUAST** (*Genome Assembly Evaluation Tool*). QUAST calcula métricas estadísticas estándar fundamentales para diagnosticar la calidad de ensamblajes genómicos y metagenómicos *de novo*.
-
-### 4.1. Comando Ejecutado y Desglose de Parámetros
-
-Ejemplo de ejecución comparativa para evaluar los 5 ensamblajes metagenómicos de forma simultánea:
+### 5.1. Comando ejecutado y desglose de parámetros
 
 ```bash
-quast.py \
-  ./assemblies/C4_230/final.contigs.fa \
-  ./assemblies/D_242/final.contigs.fa \
-  ./assemblies/E4_254/final.contigs.fa \
-  ./assemblies/EC_266/final.contigs.fa \
-  ./assemblies/H_278/final.contigs.fa \
-  -o ./quast_results/ \
-  -t 16 \
-  --min-contig 500 \
-  --labels C4_230,D_242,E4_254,EC_266,H_278
+quast.py   ../MegahitOutputs/C4_230/assembly_C4_230.contigs.fa   ../MegahitOutputs/D_242/assembly_D_242.contigs.fa   ../MegahitOutputs/E4_254/assembly_E4_254.contigs.fa   ../MegahitOutputs/EC_266/assembly_EC_266.contigs.fa   ../MegahitOutputs/H_278/assembly_H_278.contigs.fa   -o ./quast_results/   -t 16   --min-contig 1000   --labels C4_230,D_242,E4_254,EC_266,H_278
 ```
 
-#### 🛠️ Desglose de Parámetros de QUAST
-
-| Parámetro | Nombre Largo | Descripción / Fundamentación Bioinformática |
-| :--- | :--- | :--- |
-| `quast.py` | — | Script ejecutable principal de QUAST. |
-| `*.contigs.fa` | — | Archivos FASTA con los contigs a evaluar generados por MEGAHIT. |
-| `-o` | `--output-dir` | Directorio de salida donde se guardarán los informes, gráficos e interfaz interactiva Icarus (`./quast_results/`). |
-| `-t 16` | `--threads` | Asigna **16 hilos CPU** para cálculo en paralelo. |
-| `--min-contig 500` | `--min-contig` | Umbral mínimo de longitud de contig (**500 bp**) para descartar fragmentos cortos. |
-| `--labels` | `--labels` | Nombres personalizados para identificar cada muestra en el reporte comparativo. |
+#### 🛠️ Desglose de parámetros:
+* **`--min-contig 1000`**: Filtra contigs con longitud < 1,000 bp para el cálculo estadístico.
+* **`--labels`**: Etiquetas asignadas a cada ensamblaje en los informes comparativos.
 
 ---
 
-### 4.2. Mapeo General del Lote de Muestras para QUAST
+### 5.2. Mapeo general del lote de muestras para QUAST
 
-| Muestra Metagenómica | Archivo Entrante (`.fa`) | Directorio Salida QUAST | Etiqueta en Reporte |
-| :---: | :--- | :---: | :---: |
-| **C4_230** | `./assemblies/C4_230/final.contigs.fa` | `./quast_results/` | `C4_230` |
-| **D_242** | `./assemblies/D_242/final.contigs.fa` | `./quast_results/` | `D_242` |
-| **E4_254** | `./assemblies/E4_254/final.contigs.fa` | `./quast_results/` | `E4_254` |
-| **EC_266** | `./assemblies/EC_266/final.contigs.fa` | `./quast_results/` | `EC_266` |
-| **H_278** | `./assemblies/H_278/final.contigs.fa` | `./quast_results/` | `H_278` |
+| Muestra | Archivo de entrada (`.fa`) | Directorio de salida de QUAST |
+| :---: | :--- | :---: |
+| **C4_230** | `../MegahitOutputs/C4_230/assembly_C4_230.contigs.fa` | `./quast_results/` |
+| **D_242** | `../MegahitOutputs/D_242/assembly_D_242.contigs.fa` | `./quast_results/` |
+| **E4_254** | `../MegahitOutputs/E4_254/assembly_E4_254.contigs.fa` | `./quast_results/` |
+| **EC_266** | `../MegahitOutputs/EC_266/assembly_EC_266.contigs.fa` | `./quast_results/` |
+| **H_278** | `../MegahitOutputs/H_278/assembly_H_278.contigs.fa` | `./quast_results/` |
 
 ---
 
-### 4.3. Estructura de Resultados y Archivos de Salida de QUAST
-
-Dentro del directorio de salida `./quast_results/`, QUAST genera una suite completa de archivos diagnósticos:
+### 5.3. Estructura de resultados y archivos de salida de QUAST
 
 ```text
 quast_results/
-├── report.html            <-- 🌟 ARCHIVO CLAVE: Informe gráfico interactivo con curvas N50 y tamaño acumulado
-├── report.txt             <-- Tabla de resumen en texto plano
-├── report.tsv             <-- Tabla en formato TSV (ideal para scripts o R/Python)
-├── report.tex             <-- Código fuente LaTeX para informes formales
-├── icarus.html            <-- Visualizador interactivo de contigs (Icarus browser)
-└── basic_stats/           <-- Histogramas de distribución de longitudes, contenido GC y N50
+├── report.html            <-- Informe gráfico interactivo
+├── report.txt / .tsv      <-- Tablas de resumen
+├── icarus.html            <-- Visualizador interactivo de contigs
+└── basic_stats/           <-- Histogramas de N50, GC y tamaños
 ```
 
 ---
 
-### 4.4. Guía de Interpretación de Métricas Bioinformáticas
+### 5.4. Resultados reales del reporte de QUAST (contigs ≥ 1000 bp)
+
+Valores consolidados extraídos directamente de `quastReport.pdf`:
+
+| Métrica bioinformática | `C4_230` | `D_242` | `E4_254` | `EC_266` | `H_278` |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **# contigs (>= 0 bp)** | 2,752,185 | 393,296 | 1,029,881 | 1,024,561 | 823,283 |
+| **# contigs (>= 1000 bp)** | **464,888** | **78,924** | **180,683** | **172,551** | **150,056** |
+| **# contigs (>= 50000 bp)** | **1,124** | **44** | **318** | **327** | **364** |
+| **Largest contig (bp)** | 358,072 | 196,446 | 280,183 | 316,972 | **451,911** |
+| **Total length (>= 1000 bp)** | **1,770,052,994** | **198,397,871** | **527,105,744** | **523,243,306** | **464,159,380** |
+| **N50 (bp)** | 2,686 | 2,216 | 2,729 | 2,836 | **3,509** |
+| **L50** | 171,960 | 25,662 | 51,916 | 49,977 | **33,962** |
+| **auN** | 8,245.9 | 3,923.3 | 7,639.8 | 8,367.6 | **15,148.1** |
+| **GC (%)** | 56.40 | 59.72 | 53.07 | 49.72 | 55.45 |
+| **# N's per 100 kbp** | **0.00** | **0.00** | **0.00** | **0.00** | **0.00** |
+
+---
+
+### 5.5. Guía de interpretación de métricas bioinformáticas
 
 <details>
-<summary><b>🔍 Haga clic para desplegar los detalles de las métricas de QUAST</b></summary>
+<summary><b>🔍 Haga clic para desplegar la interpretación diagnóstica</b></summary>
 
-1. **Contigs Count (# contigs):**
-   - Número total de contigs con longitud mayor o igual al umbral fijado (≥500 bp). Un menor número de contigs largos suele indicar mayor continuidad.
-
-2. **Largest Contig (Contig más largo):**
-   - Longitud en pares de bases (bp) del contig más largo. Refleja la capacidad del ensamblador para resolver regiones complejas.
-
-3. **Total Length (Longitud total ensamblada):**
-   - Suma total de pares de bases de todos los contigs ensamblados. Representa la cantidad total de información genómica reconstruida en la comunidad microbiana.
-
-4. **N50 & L50:**
-   - **N50:** Longitud del contig para el cual todos los contigs de igual o mayor tamaño representan al menos el 50% de la longitud total ensamblada. *Un valor N50 mayor indica mayor continuidad en el ensamblaje.*
-   - **L50:** Número mínimo de contigs necesarios para acumular el 50% del tamaño total del ensamblaje.
-
-5. **N75 & L75:**
-   - Métricas análogas al N50/L50 pero evaluadas al umbral del 75% del tamaño total del ensamblaje.
-
-6. **GC Content (% GC):**
-   - Porcentaje total de bases Guanina y Citosina en el conjunto de contigs. Permite monitorear la composición general de la comunidad microbiana.
-
-7. **# Ns per 100 kbp:**
-   - Número de bases no determinadas (N) por cada 100.000 bases.
+* **N50 y auN (continuidad):** La muestra **`H_278`** exhibe la mayor continuidad del estudio (N50: 3,509 bp; auN: 15,148.1) y el contig de mayor extensión (~452 kb).
+* **Rendimiento de ensamblaje (`C4_230`):** Reconstruyó **1.77 Gb** de datos genómicos en contigs ≥ 1 kb, reflejando la alta profundidad de secuenciación de esta librería.
+* **Precisión:** Ausencia total de Ns (`0.00 N's per 100 kbp`).
 
 </details>
 
 ---
 
-## 5. 🤖 Automatización del Pipeline Completo en Lote (Bash)
+### 5.6. Tiempo medio de procesamiento (QUAST)
 
-Script de Bash para ejecutar la cadena completa desde el control de calidad con `fastp` hasta el ensamblaje con `MEGAHIT`:
+* **Lote de 5 muestras:** **~15 a 25 minutos** en total con 16 hilos.
+
+---
+
+## 6. 🧬 Filtrado de contigs (`SeqKit`) y predicción génica (`Prodigal`)
+
+### 6.1. Filtrado por longitud mínima con `SeqKit`
+
+Antes de proceder a la anotación y predicción génica, se aplica un filtro de longitud mínima de **1,000 bp (1 kb)** sobre los contigs ensamblados por MEGAHIT para conservar únicamente secuencias con suficiente contexto genómico.
+
+```bash
+seqkit seq -m 1000 assembly_EC_266.contigs.fa > EC_266contigs_1kb.fasta
+```
+
+#### 🛠️ Desglose de parámetros de SeqKit:
+* **`seqkit seq`**: Subcomando de SeqKit para manipulación y transformación de secuencias FASTA/Q.
+* **`-m 1000`** (`--min-len 1000`): Filtra y conserva únicamente los contigs con longitud mayor o igual a **1,000 pares de bases**.
+* **`> EC_266contigs_1kb.fasta`**: Redirección hacia el nuevo archivo FASTA filtrado.
+
+---
+
+### 6.2. Predicción de CDS y proteínas con `Prodigal`
+
+Para predecir regiones codificantes de proteínas (*Coding Sequences*, CDS) en los contigs filtrados, se empleó **Prodigal** (*Prokaryotic Dynamic Programming Genefinding Algorithm*) en modo metagenómico.
+
+```bash
+prodigal   -i EC_266contigs_1kb.fasta   -a ./prodEC_266/EC_266.faa   -d ./prodEC_266/EC_266.fna   -o ./prodEC_266/EC_266.gff   -f gff   -c   -p meta
+```
+
+#### 🛠️ Desglose de parámetros de Prodigal:
+
+| Parámetro | Nombre largo | Descripción / fundamentación bioinformática |
+| :--- | :--- | :--- |
+| `-i` | `--input` | Archivo FASTA de entrada con los contigs filtrados (`EC_266contigs_1kb.fasta`). |
+| `-a` | `--amino` | Archivo FASTA de salida con las **traducciones a aminoácidos / proteínas** (`EC_266.faa`). |
+| `-d` | `--nucleotide` | Archivo FASTA de salida con las **secuencias de nucleótidos de las CDS** (`EC_266.fna`). |
+| `-o` | `--output` | Archivo de salida estructurado con las coordenadas y anotaciones de los genes (`EC_266.gff`). |
+| `-f gff` | `--format gff` | Especifica el formato estándar **GFF3** (*General Feature Format*). |
+| `-c` | `--closed_ends` | Fuerza la predicción únicamente de **genes completos** (evita genes truncados en los bordes del contig). |
+| `-p meta` | `--procedure meta` | **Modo metagenómico**. Utiliza modelos pre-entrenados para organismos no aislados en comunidades microbianas con contenido GC variable. |
+
+---
+
+### 6.3. Mapeo general del lote y estructura de salida
+
+| Muestra | Contigs de entrada (`-i`) | Anotación en GFF3 (`-o`) | Proteínas en FASTA (`-a`) | Nucleótidos de CDS (`-d`) |
+| :---: | :--- | :--- | :--- | :--- |
+| **C4_230** | `C4_230contigs_1kb.fasta` | `./prodC4_230/C4_230.gff` | `./prodC4_230/C4_230.faa` | `./prodC4_230/C4_230.fna` |
+| **D_242** | `D_242contigs_1kb.fasta` | `./prodD_242/D_242.gff` | `./prodD_242/D_242.faa` | `./prodD_242/D_242.fna` |
+| **E4_254** | `E4_254contigs_1kb.fasta` | `./prodE4_254/E4_254.gff` | `./prodE4_254/E4_254.faa` | `./prodE4_254/E4_254.fna` |
+| **EC_266** | `EC_266contigs_1kb.fasta` | `./prodEC_266/EC_266.gff` | `./prodEC_266/EC_266.faa` | `./prodEC_266/EC_266.fna` |
+| **H_278** | `H_278contigs_1kb.fasta` | `./prodH_278/H_278.gff` | `./prodH_278/H_278.faa` | `./prodH_278/H_278.fna` |
+
+```text
+prodEC_266/
+├── EC_266.gff       <-- Anotación estructural en formato GFF3
+├── EC_266.faa       <-- Secuencias de aminoácidos (proteínas en formato FASTA)
+└── EC_266.fna       <-- Secuencias codificantes de nucleótidos (CDS en formato FASTA)
+```
+
+---
+
+### 6.4. Tiempo medio de procesamiento (SeqKit + Prodigal)
+
+* **`SeqKit seq -m 1000`**: **~5 a 15 segundos** por muestra FASTA.
+* **`Prodigal -p meta`**: **~1 a 3 minutos** por muestra.
+* **Tiempo Total Lote (5 muestras):** **~8 a 15 minutos**.
+
+---
+
+## 7. 🔬 Anotación funcional genómica (`EggNOG-mapper`)
+
+Una vez predichas las secuencias codificantes de nucleótidos (`.fna`) con Prodigal, se procedió a la **anotación funcional masiva basada en ortología** empleando **EggNOG-mapper** (`emapper.py`). Esta herramienta transfiere funcionalmente nombres de genes, categorías COG, términos de Gene Ontology (GO), rutas metabólicas KEGG, familias de enzimas CAZy y dominios InterProScan mediante búsquedas ultrarrápidas contra la base de datos EggNOG.
+
+### 7.1. Comando ejecutado y desglose de parámetros
+
+```bash
+emapper.py   -i ../croppedSamplesEggNog/prodC4_230/C4_230.fna   --itype metagenome   -o C4_230   --output_dir ../croppedSamplesEggNog/eggYESprodC4_230   --data_dir /media/hdd2/eggnog_data_v7   --cpu 16
+```
+
+#### 🛠️ Desglose de parámetros de EggNOG-mapper:
+
+| Parámetro | Nombre largo | Descripción / fundamentación bioinformática |
+| :--- | :--- | :--- |
+| `-i` | `--input` | Archivo de entrada con las secuencias nucleotídicas codificantes predichas por Prodigal (`C4_230.fna`). |
+| `--itype metagenome` | `--input_type` | Especifica que el tipo de datos de entrada corresponde a secuencias nucleotídicas de un metagenoma (`metagenome`). |
+| `-o` | `--output` | Prefijo para nombrar todos los archivos de salida de la muestra (`C4_230`). |
+| `--output_dir` | `--output_dir` | Directorio de destino para almacenar los archivos de anotación de EggNOG. |
+| `--data_dir` | `--data_dir` | Ruta del directorio local donde reside la base de datos de referencia EggNOG (versión 7 / `eggnog_data_v7`). |
+| `--cpu 16` | `--cpu` | Número de hilos de procesamiento en paralelo asignados (**16 hilos CPU**). |
+
+---
+
+### 7.2. Mapeo general del lote de muestras para EggNOG-mapper
+
+| Muestra | CDS de entrada (`-i`) | Prefijo de salida (`-o`) | Directorio de salida (`--output_dir`) |
+| :---: | :--- | :---: | :--- |
+| **C4_230** | `.../prodC4_230/C4_230.fna` | `C4_230` | `.../eggYESprodC4_230` |
+| **D_242** | `.../prodD_242/D_242.fna` | `D_242` | `.../eggYESprodD_242` |
+| **E4_254** | `.../prodE4_254/E4_254.fna` | `E4_254` | `.../eggYESprodE4_254` |
+| **EC_266** | `.../prodEC_266/EC_266.fna` | `EC_266` | `.../eggYESprodEC_266` |
+| **H_278** | `.../prodH_278/H_278.fna` | `H_278` | `.../eggYESprodH_278` |
+
+---
+
+### 7.3. Estructura de resultados y archivos de salida de EggNOG
+
+Dentro de cada directorio de salida (ej. `eggYESprodH_278/`), EggNOG-mapper genera la siguiente suite de resultados:
+
+```text
+eggYESprodH_278/
+├── H_278.emapper.annotations      <-- 🌟 TABLA PRINCIPAL: Anotaciones funcionales completas (COG, KEGG, GO, EC, CAZy)
+├── H_278.emapper.seed_orthologs   <-- Mejores alineamientos ortólogos iniciales e índices BitScore / E-value
+├── H_278.emapper.hits             <-- Alineamientos crudos de búsqueda proteica (DIAMOND/MMseqs2)
+├── H_278.emapper.genepred.fasta   <-- Secuencias de genes predichas por el flujo interno de emapper
+└── H_278.emapper.genepred.gff     <-- Coordenadas GFF3 de la predicción interna
+```
+
+#### 📄 Descripción del archivo clave (`*.emapper.annotations`):
+Es una tabla delimitada por tabuladores (TSV) que contiene las siguientes columnas fundamentales para el análisis metagenómico:
+1. **query**: ID de la secuencia/gen predicho de Prodigal.
+2. **seed_ortholog**: Proteína u ortólogo de referencia con el mejor alineamiento.
+3. **evalue & score**: Métricas de significancia estadística del alineamiento.
+4. **eggNOG_OGs**: Grupos Ortólogos (OGs) asignados en distintos niveles taxonómicos.
+5. **max_annot_lvl**: Nivel taxonómico más específico de la asignación.
+6. **COG_category**: Categoría funcional de Grupos Ortólogos de Cúmulos (ej. *Metabolismo de carbohidratos*, *Reparación de ADN*).
+7. **Description**: Descripción textual de la función proteica predicha.
+8. **Preferred_name**: Nombre común o símbolo del gen (ej. *recA*, *dnaK*).
+9. **GOs**: Términos de Gene Ontology (proceso biológico, función molecular, componente celular).
+10. **EC & KEGG_ko**: Números de Clasificación Enzimática (EC) y KOs de KEGG para reconstrucción de rutas metabólicas.
+
+---
+
+### 7.4. Tiempo medio de procesamiento (EggNOG-mapper)
+
+* **Rendimiento por muestra:** ~15 a 45 minutos por muestra según la cantidad de CDS contenidas en el `.fna`.
+* **Tiempo total estimado (lote de 5 muestras):** **~1.5 a 3.5 horas** con 16 hilos en la base de datos `v7`.
+
+---
+
+## 8. 🤖 Automatización del pipeline completo en lote (Bash)
 
 ```bash
 #!/usr/bin/env bash
-# Pipeline Metagenomico: fastp (QC) -> MEGAHIT (Assembly)
+# Pipeline Metagenomico Completo: fastp -> MEGAHIT -> QUAST -> SeqKit -> Prodigal -> EggNOG-mapper
 
 THREADS=16
-FASTP_BIN="../fastp"
-MEGAHIT_BIN="../MEGAHIT-1.2.9-Linux-x86_64-static/bin/megahit"
-
 RAW_DIR="../metagenomas_antarida_2019"
 CLEAN_DIR="./clean_fastq"
-REPORT_DIR="./fastp_reports"
-ASSEMBLY_DIR="./assemblies"
+ASSEMBLY_DIR="./MegahitOutputs"
+QUAST_DIR="./quast_results"
+PROD_DIR="./prodigal_outputs"
+EGGNOG_DIR="../croppedSamplesEggNog"
+EGGNOG_DB="/media/hdd2/eggnog_data_v7"
 
-mkdir -p "$CLEAN_DIR" "$REPORT_DIR" "$ASSEMBLY_DIR"
+mkdir -p "$CLEAN_DIR" "$ASSEMBLY_DIR" "$QUAST_DIR" "$PROD_DIR" "$EGGNOG_DIR"
 
 for R1 in "${RAW_DIR}"/*_R1_001.fastq.gz; do
     R2="${R1/_R1_001.fastq.gz/_R2_001.fastq.gz}"
-    SAMPLE=$(basename "$R1" | cut -d'_' -f1,2) # Extrae el ID de muestra (ej. C4_230)
+    SAMPLE=$(basename "$R1" | cut -d'_' -f1,2)
 
-    echo "=================================================="
-    echo "1. Control de Calidad con fastp: ${SAMPLE}"
-    echo "=================================================="
+    echo "=== 1. QC con fastp: ${SAMPLE} ==="
+    ../fastp -i "$R1" -I "$R2"       -o "${CLEAN_DIR}/${SAMPLE}_R1.fastq.gz"       -O "${CLEAN_DIR}/${SAMPLE}_R2.fastq.gz"       -q 20 -j "${CLEAN_DIR}/${SAMPLE}.json" -h "${CLEAN_DIR}/${SAMPLE}.html" -w 4
 
-    CLEAN_R1="${CLEAN_DIR}/${SAMPLE}_R1.fastq.gz"
-    CLEAN_R2="${CLEAN_DIR}/${SAMPLE}_R2.fastq.gz"
+    echo "=== 2. Ensamblaje con MEGAHIT: ${SAMPLE} ==="
+    ../MEGAHIT-1.2.9-Linux-x86_64-static/bin/megahit       -1 "${CLEAN_DIR}/${SAMPLE}_R1.fastq.gz"       -2 "${CLEAN_DIR}/${SAMPLE}_R2.fastq.gz"       -o "${ASSEMBLY_DIR}/${SAMPLE}" -t "$THREADS"
 
-    "$FASTP_BIN" \
-      -i "$R1" -I "$R2" \
-      -o "$CLEAN_R1" -O "$CLEAN_R2" \
-      -q 20 \
-      -j "${REPORT_DIR}/${SAMPLE}.json" \
-      -h "${REPORT_DIR}/${SAMPLE}.html" \
-      -w 4
+    CONTIG_RAW="${ASSEMBLY_DIR}/${SAMPLE}/assembly_${SAMPLE}.contigs.fa"
+    CONTIG_1KB="${ASSEMBLY_DIR}/${SAMPLE}/${SAMPLE}_contigs_1kb.fasta"
 
-    echo "=================================================="
-    echo "2. Ensamblaje de Novo con MEGAHIT: ${SAMPLE}"
-    echo "=================================================="
+    echo "=== 3. Filtrado >=1kb con SeqKit: ${SAMPLE} ==="
+    seqkit seq -m 1000 "$CONTIG_RAW" > "$CONTIG_1KB"
 
-    "$MEGAHIT_BIN" \
-      -1 "$CLEAN_R1" \
-      -2 "$CLEAN_R2" \
-      -o "${ASSEMBLY_DIR}/${SAMPLE}" \
-      -t "$THREADS"
+    echo "=== 4. Prediccion Genica con Prodigal: ${SAMPLE} ==="
+    SAMPLE_PROD_DIR="${PROD_DIR}/prod_${SAMPLE}"
+    mkdir -p "$SAMPLE_PROD_DIR"
 
-    CONTIG_PATH="${ASSEMBLY_DIR}/${SAMPLE}/final.contigs.fa"
-    if [ -f "$CONTIG_PATH" ]; then
-        CONTIG_FILES+=("$CONTIG_PATH")
-        LABELS+=("$SAMPLE")
-    fi
+    prodigal -i "$CONTIG_1KB"       -a "${SAMPLE_PROD_DIR}/${SAMPLE}.faa"       -d "${SAMPLE_PROD_DIR}/${SAMPLE}.fna"       -o "${SAMPLE_PROD_DIR}/${SAMPLE}.gff"       -f gff -c -p meta
 
-    echo "✅ Muestra ${SAMPLE} procesada y ensamblada."
-    echo ""
+    echo "=== 5. Anotacion Funcional con EggNOG-mapper: ${SAMPLE} ==="
+    SAMPLE_EGG_DIR="${EGGNOG_DIR}/eggYESprod_${SAMPLE}"
+    mkdir -p "$SAMPLE_EGG_DIR"
+
+    emapper.py -i "${SAMPLE_PROD_DIR}/${SAMPLE}.fna"       --itype metagenome       -o "${SAMPLE}"       --output_dir "$SAMPLE_EGG_DIR"       --data_dir "$EGGNOG_DB"       --cpu "$THREADS"
+
+    CONTIG_FILES+=("$CONTIG_RAW")
+    LABELS+=("$SAMPLE")
 done
 
-echo "=================================================="
-echo "3. Evaluación de Calidad de Ensamblajes con QUAST"
-echo "=================================================="
-
+echo "=== 6. Evaluacion Diagnostica con QUAST ==="
 JOINED_LABELS=$(IFS=,; echo "${LABELS[*]}")
+quast.py "${CONTIG_FILES[@]}" -o "$QUAST_DIR" -t "$THREADS" --min-contig 1000 --labels "$JOINED_LABELS"
 
-quast.py \
-  "${CONTIG_FILES[@]}" \
-  -o "./quast_results" \
-  -t "$THREADS" \
-  --min-contig 500 \
-  --labels "$JOINED_LABELS"
-
-echo "🎉 Pipeline completado con éxito para todas las muestras."
-echo "📊 Informe comparativo de QUAST guardado en: ./quast_results/report.html"
+echo "🎉 Pipeline completado con éxito."
 ```
 
 ---
 
-## 6. 🔄 Diagrama de Flujo Integrado del Pipeline
+## 9. 🔄 Diagrama de flujo integrado del pipeline
 
 ```mermaid
 graph TD
-    A[FASTQ Crudos R1/R2 .fastq.gz] -->|1. Control de Calidad| B(fastp -q 20)
-    B -->|Archivos limpios| C[FASTQ Filtrados R1/R2 .fastq.gz]
-    B -->|Reportes QC| D[Reportes HTML y JSON]
-    C -->|2. Ensamblaje de Novo| E(MEGAHIT -t 16)
-    E -->|Contigs finales| F[final.contigs.fa]
-    F -->|3. Evaluación de Ensamblaje| G(QUAST --min-contig 500)
-    G -->|Métricas N50 / L50 / #Contigs| H[Reportes QUAST report.html / txt / tsv]
+    A[FASTQ Crudos PE .fastq.gz] -->|paso lateral: Kaiju| B(Kaiju -z 16 -f nr_euk)
+    B -->|Asignación taxonómica| C[summaryKaiju.table]
+    
+    A -->|1. Control de Calidad| D(fastp -q 20)
+    D -->|Archivos limpios| E[FASTQ Filtrados R1/R2]
+    E -->|2. Ensamblaje de Novo| F(MEGAHIT -t 16)
+    F -->|Contigs crudos| G[assembly.contigs.fa]
+    
+    G -->|3. Evaluación de Calidad| H(QUAST --min-contig 1000)
+    H -->|Reporte comparativo| I[quastReport.pdf / html]
+    
+    G -->|4. Filtrado de longitud| J(SeqKit seq -m 1000)
+    J -->|Contigs >= 1kb| K[contigs_1kb.fasta]
+    
+    K -->|5. Predicción génica| L(Prodigal -p meta -c -f gff)
+    L -->|Anotación en GFF3| M[SAMPLE.gff]
+    L -->|Proteínas en FASTA| N[SAMPLE.faa]
+    L -->|Nucleótidos de CDS| O[SAMPLE.fna]
+    
+    O -->|6. Anotación Funcional| P(emapper.py --itype metagenome)
+    P -->|Anotaciones COG/KEGG/GO| Q[SAMPLE.emapper.annotations]
+    P -->|Ortólogos Semilla| R[SAMPLE.emapper.seed_orthologs]
 ```
 
 ---
 
-## 7. 📚 Referencias
+## 10. 📚 Referencias
 
-- **fastp GitHub Repository:** https://github.com/OpenGene/fastp
-- **Chen, S. (2025).** *fastp 1.0: An ultra-fast all-round tool for FASTQ data quality control and preprocessing*. **iMeta**, 4.5, e70078. DOI: 10.1002/imt2.70078
-- **MEGAHIT GitHub Repository:** https://github.com/voutcn/megahit
-- **Li, D., et al. (2015).** *MEGAHIT: An ultra-fast single-node solution for large and complex metagenomics assembly via succinct de Bruijn graph*. **Bioinformatics**, 31(10), 1674–1676. DOI: 10.1093/bioinformatics/btv033
-- **QUAST (Genome Assembly Evaluation Tool):** Gurevich, A., Saveliev, V., Vyahhi, N., & Tesler, G. (2013). *QUAST: quality assessment tool for genome assemblies*. **Bioinformatics**, 29(8), 1072–1075.
-- **SeqKit GitHub Repository:** https://github.com/shenwei356/seqkit
+- **fastp:** Chen, S. (2025). *fastp 1.0: An ultra-fast all-round tool for FASTQ data quality control and preprocessing*. **iMeta**, 4.5, e70078.
+- **MEGAHIT:** Li, D., et al. (2015). *MEGAHIT: An ultra-fast single-node solution for large and complex metagenomics assembly via succinct de Bruijn graph*. **Bioinformatics**, 31(10), 1674–1676.
+- **QUAST:** Gurevich, A., et al. (2013). *QUAST: quality assessment tool for genome assemblies*. **Bioinformatics**, 29(8), 1072–1075.
+- **Kaiju:** Menzel, P., et al. (2016). *Fast and sensitive taxonomic classification for metagenomics with Kaiju*. **Nature Communications**, 7, 11257.
+- **SeqKit:** Shen, W., et al. (2016). *SeqKit: A Cross-Platform and Ultrafast Toolkit for FASTA/Q File Manipulation*. **PLoS ONE**, 11(10), e0163962.
+- **Prodigal:** Hyatt, D., et al. (2010). *Prodigal: prokaryotic gene prediction and genome annotation*. **BMC Bioinformatics**, 11, 199.
+- **EggNOG-mapper:** Cantalapiedra, C. P., et al. (2021). *eggnog-mapper v2: functional annotation, orthology assignment, and domain prediction at the metagenomic scale*. **Molecular Biology and Evolution**, 38(12), 5825–5829.
