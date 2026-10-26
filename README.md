@@ -1,16 +1,16 @@
 ### 🧬 Bitácora de procesamiento de datos metagenómicos antárticos
 🌐  **Idioma / Language:**  [English Version](bitacora_qc_metagenomas_en.md)
-* **Proyecto:**  Análisis metagenómico de muestras antárticas (2019)
-* **Etapa 1:**  Asignación taxonómica directa (Kaiju)  *[paso lateral]*
-* **Etapa 2:**  Control de calidad, limpieza y recortado de adaptadores (fastp)
-* **Etapa 3:**  Ensamblaje metagenómico  *de novo*  (MEGAHIT)
-* **Etapa 4:**  Evaluación de calidad de ensamblajes (QUAST)
-* **Etapa 5:**  Análisis comparativo directo de filtrado
-* **Etapa 6:**  Filtrado de contigs (SeqKit) y predicción génica (Prodigal)
-* **Etapa 7:**  Anotación funcional genómica (EggNOG-mapper)
-* **Etapa 8:**  Construcción del índice de referencia, alineamiento y ordenamiento de lecturas (Bowtie2 y Samtools)
-* **Etapa 9:**  Agrupamiento metagenómico y matriz de cobertura (MetaBAT 2)
-* **Fecha de actualización:**  25 de octubre de 2026
+> **Proyecto:**  Análisis metagenómico de muestras antárticas (2019)
+> **Etapa 1:**  Asignación taxonómica directa (Kaiju)  *[paso lateral]*
+> **Etapa 2:**  Control de calidad, limpieza y recortado de adaptadores (fastp)
+> **Etapa 3:**  Ensamblaje metagenómico  *de novo*  (MEGAHIT)
+> **Etapa 4:**  Evaluación de calidad de ensamblajes (QUAST)
+> **Etapa 5:**  Análisis comparativo directo de filtrado
+> **Etapa 6:**  Filtrado de contigs (SeqKit) y predicción génica (Prodigal)
+> **Etapa 7:**  Anotación funcional genómica (EggNOG-mapper)
+> **Etapa 8:**  Construcción del índice de referencia, alineamiento y ordenamiento de lecturas (Bowtie2 y Samtools)
+> **Etapa 9:**  Agrupamiento metagenómico y matriz de cobertura (MetaBAT 2)
+> **Fecha de actualización:**  25 de octubre de 2026
 --------------------------------------------------------------------------------
 
 #### 📋 Tabla de contenidos
