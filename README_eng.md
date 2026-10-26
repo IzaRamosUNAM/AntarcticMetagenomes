@@ -1,6 +1,6 @@
 ### 🧬 Antarctic Metagenomic Data Processing Log
 
-> 🌐 **Idioma / Language:** [Versión en español](bitacora_qc_metagenomas.md)  
+> 🌐 **Idioma / Language:** [Versión en español](README.md)  
 > **Project:** Antarctic Metagenomic Sample Analysis (2019)  
 > **Stage 1:** Direct Taxonomic Assignment (`Kaiju`) *[Side Step]*  
 > **Stage 2:** Quality Control, Cleaning, and Adapter Trimming (`fastp`)  
