@@ -1,5 +1,5 @@
 ### 🧬 Bitácora de procesamiento de datos metagenómicos antárticos
-🌐  **Idioma / Language:**  [English Version](bitacora_qc_metagenomas_en.md)
+> 🌐  **Idioma / Language:**  [English Version](bitacora_qc_metagenomas_en.md)
 > **Proyecto:**  Análisis metagenómico de muestras antárticas (2019)
 > **Etapa 1:**  Asignación taxonómica directa (Kaiju)  *[paso lateral]*
 > **Etapa 2:**  Control de calidad, limpieza y recortado de adaptadores (fastp)
